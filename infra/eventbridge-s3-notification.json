@@ -1,0 +1,17 @@
+{
+  "EventPattern": {
+    "source": ["aws.s3"],
+    "detail-type": ["Object Created"],
+    "detail": {
+      "bucket": {
+        "name": ["STAGING_BUCKET"]
+      }
+    }
+  },
+  "Targets": [
+    {
+      "Arn": "arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:VerifierLambda",
+      "Id": "VerifierLambda"
+    }
+  ]
+}

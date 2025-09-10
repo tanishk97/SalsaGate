@@ -1,5 +1,7 @@
+---
+# yamllint disable rule:line-length
 name: verify-and-promote
-on:
+'on':
   workflow_dispatch:
     inputs:
       object_key:
@@ -7,18 +9,17 @@ on:
         required: true
       promote:
         description: "Promote if verified?"
-        required: true
         default: "true"
-
 permissions:
   id-token: write
   contents: read
 
 env:
   AWS_REGION: us-east-1
-  STAGING_BUCKET: your-staging-bucket-name     # TODO
-  WEBSITE_BUCKET: your-website-bucket-name     # TODO
-  VERIFIER_URL: https://<your-lambda-url>/verify  # TODO optional if calling the API
+  STAGING_BUCKET: <REPLACE_ME>
+  WEBSITE_BUCKET: <REPLACE_ME>
+  ACCOUNT_ID: <REPLACE_ME>
+  ROLE_ARN: arn:aws:iam::<ACCOUNT_ID>:role/GHAOIDCDeployRole
 
 jobs:
   verify_and_promote:
@@ -27,46 +28,41 @@ jobs:
       - name: Configure AWS creds
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/GHAOIDCDeployRole  # TODO
+          role-to-assume: ${{ env.ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download object (for local digest check)
+      - name: Download artifacts from staging
         run: |
           aws s3 cp s3://${{ env.STAGING_BUCKET }}/${{ inputs.object_key }} .
-          sha256sum ${{ inputs.object_key }} | tee digest.txt
+          aws s3 cp s3://${{ env.STAGING_BUCKET }}/${{ inputs.object_key }}.sig .
+          aws s3 cp s3://${{ env.STAGING_BUCKET }}/${{ inputs.object_key }}.pem .
+          aws s3 cp s3://${{ env.STAGING_BUCKET }}/${{ inputs.object_key }}.attestation.sigstore .
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
-      - name: Verify SLSA attestation with cosign
-        env:
-          COSIGN_EXPERIMENTAL: "true"
+      - name: Verify signature
         run: |
-          cosign verify-attestation \
+          cosign verify-blob \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "https://github.com/.+" \
+            --signature ${{ inputs.object_key }}.sig \
+            --certificate ${{ inputs.object_key }}.pem \
+            ${{ inputs.object_key }}
+
+      - name: Verify SLSA attestation
+        run: |
+          cosign verify-blob-attestation \
             --type slsaprovenance \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --certificate-identity-regexp "https://github.com/.+" \
             ${{ inputs.object_key }}
 
-      - name: (Optional) Call Verifier API to record ledger/tag
-        if: env.VERIFIER_URL != ''
-        run: |
-          curl -sS -X POST "${{ env.VERIFIER_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"bucket\":\"${{ env.STAGING_BUCKET }}\",\"key\":\"${{ inputs.object_key }}\"}" | tee verify.json
-
-      - name: Tag source object as verified (if API not used)
-        if: env.VERIFIER_URL == ''
-        run: |
-          aws s3api put-object-tagging \
-            --bucket "${{ env.STAGING_BUCKET }}" \
-            --key "${{ inputs.object_key }}" \
-            --tagging 'TagSet=[{Key=trust,Value=verified}]'
-
-      - name: Promote to website (requires tag)
+      - name: Promote to website
         if: ${{ inputs.promote == 'true' }}
         run: |
-          aws s3 cp "s3://${{ env.STAGING_BUCKET }}/${{ inputs.object_key }}" \
-                   "s3://${{ env.WEBSITE_BUCKET }}/${{ inputs.object_key }}" \
-                   --tagging "trust=verified" \
-                   --metadata-directive REPLACE --tagging-directive REPLACE
+          aws s3 cp s3://${{ env.STAGING_BUCKET }}/${{ inputs.object_key }} \
+            s3://${{ env.WEBSITE_BUCKET }}/${{ inputs.object_key }} \
+            --tagging "trust=verified" \
+            --tagging-directive REPLACE \
+            --metadata-directive REPLACE
