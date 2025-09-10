@@ -1,0 +1,67 @@
+name: build-sign-attest-upload
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # OIDC for keyless signing
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  STAGING_BUCKET: your-staging-bucket-name   # TODO
+
+jobs:
+  build_attest_upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build your static site (adjust as needed)
+      - name: Build site bundle
+        run: |
+          mkdir -p dist
+          # TODO: replace with your build (e.g., npm ci && npm run build)
+          echo "<html><body>SalsaGate</body></html>" > dist/index.html
+          tar -czf site-${{ github.sha }}.tgz -C dist .
+
+      # SBOM (optional but recommended)
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./dist
+          format: spdx-json
+          output-file: sbom-${{ github.sha }}.spdx.json
+
+      # Install cosign (keyless)
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Minimal provenance (you can replace with actions/attest-build-provenance@v1)
+      - name: Create provenance predicate
+        run: |
+          cat > provenance.json <<'JSON'
+          { "buildType": "https://github.com/actions/build",
+            "buildConfig": { "repo": "${{ github.repository }}", "sha": "${{ github.sha }}" } }
+          JSON
+
+      - name: Attest the tarball with SLSA predicate
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign attest \
+            --type slsaprovenance \
+            --predicate provenance.json \
+            site-${{ github.sha }}.tgz
+
+      # Upload to S3 (staging)
+      - name: Configure AWS creds (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/GHAOIDCDeployRole   # TODO
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Push artifacts to S3
+        run: |
+          aws s3 cp site-${{ github.sha }}.tgz s3://${{ env.STAGING_BUCKET }}/site-${{ github.sha }}.tgz
+          aws s3 cp sbom-${{ github.sha }}.spdx.json s3://${{ env.STAGING_BUCKET }}/sbom-${{ github.sha }}.spdx.json
