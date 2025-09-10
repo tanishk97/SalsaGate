@@ -2,7 +2,7 @@
 
 This repo demonstrates end-to-end artifact trust for a static site using
 Sigstore `cosign`, SLSA provenance, a staging bucket, and an optional
-verifier Lambda.
+verifier Lambda .
 
 ## One-time AWS setup
 
