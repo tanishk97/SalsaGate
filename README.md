@@ -1,2 +1,0 @@
-# SalsaGate
-Main Solution Repo
