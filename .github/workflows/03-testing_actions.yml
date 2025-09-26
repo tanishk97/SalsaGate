@@ -15,7 +15,8 @@ jobs:
         run: pwd; ls -la /home/runner/work/SalsaGate/SalsaGate
 
       - name: Run GoodBye World
-        uses: .github/.actions/SalsaGate/goodbye_world
+        uses: ./github/.actions/SalsaGate/goodbye_world
+
 
 
 
