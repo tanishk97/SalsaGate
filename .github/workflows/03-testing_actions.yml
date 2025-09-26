@@ -6,6 +6,6 @@ jobs:
   custom-actions:
     steps:
       - uses: actions/checkout@v4
-
+      - runs-on: ubuntu-latest
       - name: Run GoodBye World
       - uses: ./github/actions/SalsaGate/goodbye_world
