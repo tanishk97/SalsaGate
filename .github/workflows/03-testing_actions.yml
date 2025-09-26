@@ -7,11 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Show runner info
-        run: pwd; ls -la
+        run: pwd; ls -la /home/runner/work/SalsaGate
+      
       
       - uses: actions/checkout@v4
       - name: Run GoodBye World
         uses: ./.github/.actions/SalsaGate/goodbye_world
+
 
 
 
