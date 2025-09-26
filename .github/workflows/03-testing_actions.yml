@@ -3,9 +3,9 @@ name: test-custom-actions
 on: [push]
 
 jobs:
-  custom-actions:
+  test1:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - runs-on: ubuntu-latest
       - name: Run GoodBye World
       - uses: ./github/actions/SalsaGate/goodbye_world
