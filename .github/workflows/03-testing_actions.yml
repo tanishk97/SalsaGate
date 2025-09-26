@@ -8,4 +8,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run GoodBye World
-      - uses: ./github/actions/SalsaGate/goodbye_world
+        uses: ./github/actions/SalsaGate/goodbye_world
+
