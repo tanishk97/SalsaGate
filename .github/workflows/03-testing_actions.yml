@@ -1,0 +1,11 @@
+name: test-custom-actions
+
+on: [push]
+
+jobs:
+  custom-actions:
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run GoodBye World
+      - uses: ./github/actions/SalsaGate/goodbye_world
