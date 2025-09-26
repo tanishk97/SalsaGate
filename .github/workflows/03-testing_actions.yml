@@ -9,11 +9,13 @@ jobs:
       - name: Show runner info
         run: pwd; ls -la /home/runner/work/SalsaGate
       
-      - name: checkout repo
+      - name: test
         uses: actions/checkout@v4
+        run: find / -iname *action.yml
 
       - name: Run GoodBye World
         uses: ./.github/.actions/SalsaGate/goodbye_world
+
 
 
 
