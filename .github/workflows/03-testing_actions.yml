@@ -14,7 +14,7 @@ jobs:
       - name: Show runner info
         run: pwd; ls -la /home/runner/work/SalsaGate/SalsaGate
       
-      # Not required if we bundle and publish the puglin.
+      # Not required if we bundle and publish the plugin.
       - name: install plugin dependencies 
         run: npm ci
         working-directory: ./.github/.actions/SalsaGate/hello_world/
@@ -24,6 +24,7 @@ jobs:
       
       - name: Show runner info
         run: pwd; cat /home/runner/work/SalsaGate/SalsaGate/hello_world.json;
+
 
 
 
