@@ -16,7 +16,7 @@ jobs:
       
       - name: install plugin dependencies #not required if bundle created.
         run: npm ci
-        working-directory: ./.github/actions/hello-world
+        working-directory: ./.github/.actions/SalsaGate/goodbye_world/
 
       - name: Run GoodBye World
         uses: ./.github/.actions/SalsaGate/goodbye_world/
