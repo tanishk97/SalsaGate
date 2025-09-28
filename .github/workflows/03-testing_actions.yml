@@ -23,7 +23,8 @@ jobs:
         uses: ./.github/.actions/SalsaGate/hello_world/
       
       - name: Show runner info
-        run: pwd; find /home/runner/work/SalsaGate/SalsaGate -iname *.json;
+        run: pwd; cat /home/runner/work/SalsaGate/SalsaGate/hello_world.json;
+
 
 
 
