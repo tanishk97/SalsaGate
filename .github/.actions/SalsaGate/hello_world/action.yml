@@ -1,0 +1,12 @@
+name: "Goodbye World"
+Descirption: "description"
+
+Author: "Jane Doe"
+
+outputs:
+  filepath:
+    description: "The path of the generated .json"
+
+runs:
+  using: "node20"
+  main: "index.js"
