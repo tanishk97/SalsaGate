@@ -3,8 +3,8 @@ name: test-generating provenance
 on: [push]
 
 jobs:
+  runs-on: ubuntu-latest
   test1:
-    runs-on: ubuntu-latest
     permissions:
       id-token: write        # REQUIRED for OIDC token (attestation signing)
       contents: read
@@ -33,16 +33,12 @@ jobs:
       #  with:
       #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
       
-      - name: Generate SLSA Provenance
-        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-        with:
-          base64-subjects: ${{ toJson(steps.build.outputs.artifacts-sha256) }}
-
+  provenance-test:
+    needs: test1
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      # Example input; adjust as needed
+      base64-subjects: /home/runner/work/SalsaGate/SalsaGate/heelo_world.json
       
-      - name: Display provenance file
-        run: |
-          ls -la
-          echo "===== Provenance JSON ====="
-          cat /home/runner/work/SalsaGate/SalsaGate/provenance.json
-          echo "==========================="
+
 
