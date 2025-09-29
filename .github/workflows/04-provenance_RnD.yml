@@ -8,6 +8,7 @@ jobs:
     permissions:
       id-token: write        # REQUIRED for OIDC token (attestation signing)
       contents: read
+      actions: read
       attestations: write
     steps:
       - name: Show runner info
@@ -36,9 +37,7 @@ jobs:
         uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
         with:
           base64-subjects: ${{ toJson(steps.build.outputs.artifacts-sha256) }}
-        permissions:
-          actions: read
-          id-token: write
+
       
       - name: Display provenance file
         run: |
