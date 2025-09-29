@@ -6,8 +6,8 @@ jobs:
   test1:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       id-token: write        # REQUIRED for OIDC token (attestation signing)
+      contents: read
       attestations: write
     steps:
       - name: Show runner info
