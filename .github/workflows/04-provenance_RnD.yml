@@ -5,6 +5,10 @@ on: [push]
 jobs:
   test1:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write        # REQUIRED for OIDC token (attestation signing)
+      attestations: write
     steps:
       - name: Show runner info
         run: pwd; ls -la /home/runner/work/SalsaGate
