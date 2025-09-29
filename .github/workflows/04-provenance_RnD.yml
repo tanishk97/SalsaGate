@@ -27,7 +27,13 @@ jobs:
       - name: Run Hello World
         uses: ./.github/.actions/SalsaGate/hello_world/
       
-      - name: Attest
-        uses: actions/attest-build-provenance@v3
+      #- name: Attest
+      #  uses: actions/attest-build-provenance@v3
+      #  with:
+      #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
+      
+      - name: Generate SLSA Provenance file
+        uses: slsa-framework/slsa-github-generator/actions/provenance@v1
         with:
-          subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
+          subject-path: "/home/runner/work/SalsaGate/SalsaGate/hello_world.json"
+          output-path: "/home/runner/work/SalsaGate/SalsaGate/hw_provenance.json"
