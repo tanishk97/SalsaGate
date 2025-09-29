@@ -1,0 +1,29 @@
+name: test-generating provenance
+
+on: [push]
+
+jobs:
+  test1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show runner info
+        run: pwd; ls -la /home/runner/work/SalsaGate
+      
+      - name: test
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        run: pwd; ls -la /home/runner/work/SalsaGate/SalsaGate
+      
+      # Not required if we bundle and publish the puglin.
+      - name: install plugin dependencies 
+        run: npm ci
+        working-directory: ./.github/.actions/SalsaGate/hello_world/
+
+      - name: Run Hello World
+        uses: ./.github/.actions/SalsaGate/hello_world/
+      
+      - name: Generate provenance
+        uses: slsa-framework/slsa-github-generator/actions/provenance@v1
+        with:
+          subject-path: "/home/runner/work/SalsaGate/SalsaGate/*"
