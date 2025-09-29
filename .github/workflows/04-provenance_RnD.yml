@@ -44,7 +44,7 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       # Example input; adjust as needed
-      base64-subjects: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
+      base64-subjects: ${{ toJson(['/home/runner/work/SalsaGate/SalsaGate/hello_world.json']) }}
       
 
 
