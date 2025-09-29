@@ -32,9 +32,18 @@ jobs:
       #  with:
       #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
       
-      - name: Generate SLSA Provenance file
-        uses: slsa-framework/slsa-github-generator/actions/provenance@v2.1.0
+      - name: Generate SLSA Provenance
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
         with:
-          subject-path: "/home/runner/work/SalsaGate/SalsaGate/hello_world.json"
-          output-path: "/home/runner/work/SalsaGate/SalsaGate/hw_provenance.json"
+          base64-subjects: ${{ toJson(steps.build.outputs.artifacts-sha256) }}
+        permissions:
+          actions: read
+          id-token: write
+      
+      - name: Display provenance file
+        run: |
+          ls -la
+          echo "===== Provenance JSON ====="
+          cat /home/runner/work/SalsaGate/SalsaGate/provenance.json
+          echo "==========================="
 
