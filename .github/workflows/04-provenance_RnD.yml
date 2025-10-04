@@ -41,22 +41,11 @@ jobs:
       #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
 
   provenance:
-    needs: [test1]
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      id-token: write
-      contents: write
-    steps:
-      - name: generate provenance
-        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-        with:
-          base64-subjects: "${{ needs.test1.outputs.hashes }}"
-          # Upload provenance to a new release
-          upload-assets: false
-      
-      - name: Show runner info
-        run: pwd; ls -la /home/runner/work/SalsaGate/SalsaGate
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.test1.outputs.hashes }}"
+      upload-assets: false
+    
 
 
       
