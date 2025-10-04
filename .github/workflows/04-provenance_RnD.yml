@@ -29,22 +29,34 @@ jobs:
       - name: Run Hello World
         uses: ./.github/.actions/SalsaGate/hello_world/
       
+      - name: Generate Hash
+        run: |
+        echo "hashes=$(sha256sum hello_world.json | base64 -w0)
+      
       #- name: Attest
       #  uses: actions/attest-build-provenance@v3
       #  with:
       #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
-      
-  provenance-test:
-    needs: test1
+
+  provenance:
+    needs: [build]
     permissions:
-      id-token: write        # REQUIRED for OIDC token (attestation signing)
-      contents: write
       actions: read
-      attestations: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-    with:
-      # Example input; adjust as needed
-      base64-subjects: ${{ toJson(['/home/runner/work/SalsaGate/SalsaGate/hello_world.json']) }}
+      id-token: write
+      contents: write
+    steps:
+      - name: generate provenance
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+        with:
+          base64-subjects: "${{ needs.test1.outputs.hashes }}"
+          # Upload provenance to a new release
+          upload-assets: false
+      
+      - name: Show runner info
+        run: pwd; ls -la /home/runner/work/SalsaGate/SalsaGate
+
+
+      
       
 
 
