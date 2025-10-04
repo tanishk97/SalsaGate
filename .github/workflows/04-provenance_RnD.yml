@@ -34,7 +34,7 @@ jobs:
       - name: Generate Hash
         id: hash
         run: |
-          echo "hashes = $(sha256sum hello_world.json | base64 -w0)" >> $GITHUB_OUTPUT
+          echo "hashes=$(sha256sum hello_world.json | base64 -w0)" >> "$GITHUB_OUTPUT"
       
       #- name: Attest
       #  uses: actions/attest-build-provenance@v3
