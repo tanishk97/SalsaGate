@@ -45,6 +45,7 @@ jobs:
     permissions:
       id-token: write        # REQUIRED for OIDC token (attestation signing)
       contents: write
+      actions: read
     with:
       base64-subjects: "${{ needs.test1.outputs.hashes }}"
       upload-assets: false
