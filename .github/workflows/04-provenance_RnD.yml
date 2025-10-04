@@ -32,10 +32,9 @@ jobs:
         uses: ./.github/.actions/SalsaGate/hello_world/
       
       - name: Generate Hash
-        id: generate_hash
+        id: hash
         run: |
-          HASH=$(sha256sum hello_world.json | awk '{print $1}')
-          echo "hashes=[{\"name\": \"hello_world.json\", \"digest\": {\"sha256\": \"$HASH\"}}]" >> $GITHUB_OUTPUT
+          echo "hashes = $(sha256sum hello_world.json | base64 -w0)" >> $GITHUB_OUTPUT
       
       #- name: Attest
       #  uses: actions/attest-build-provenance@v3
@@ -43,6 +42,7 @@ jobs:
       #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
 
   provenance:
+    needs: [test1]
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
       id-token: write        # REQUIRED for OIDC token (attestation signing)
