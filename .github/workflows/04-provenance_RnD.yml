@@ -44,7 +44,7 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
       id-token: write        # REQUIRED for OIDC token (attestation signing)
-      contents: read
+      contents: write
     with:
       base64-subjects: "${{ needs.test1.outputs.hashes }}"
       upload-assets: false
