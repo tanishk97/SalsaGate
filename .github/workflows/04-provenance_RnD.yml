@@ -30,8 +30,7 @@ jobs:
         uses: ./.github/.actions/SalsaGate/hello_world/
       
       - name: Generate Hash
-        run: |
-        echo "hashes=$(sha256sum hello_world.json | base64 -w0)
+        run: echo "hashes=$(sha256sum hello_world.json | base64 -w0)"
       
       #- name: Attest
       #  uses: actions/attest-build-provenance@v3
@@ -39,7 +38,8 @@ jobs:
       #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
 
   provenance:
-    needs: [build]
+    runs-on: ubuntu-latest
+    needs: [test1]
     permissions:
       actions: read
       id-token: write
@@ -58,5 +58,6 @@ jobs:
 
       
       
+
 
 
