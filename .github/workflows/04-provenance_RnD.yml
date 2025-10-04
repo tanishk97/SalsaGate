@@ -1,6 +1,6 @@
-#name: test-generating provenance
+name: test-generating provenance
 
-#on: [push]
+on: [push]
 
 #jobs:
   
