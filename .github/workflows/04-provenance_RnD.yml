@@ -33,7 +33,9 @@ jobs:
       
       - name: Generate Hash
         id: generate_hash
-        run: echo $(sha256sum hello_world.json | awk '{print $1}' | xxd -r -p | base64 -w0) >> $GITHUB_OUTPUT
+        run: |
+          HASH=$(sha256sum hello_world.json | awk '{print $1}')
+          echo "hashes=[{\"name\": \"hello_world.json\", \"digest\": {\"sha256\": \"$HASH\"}}]" >> $GITHUB_OUTPUT
       
       #- name: Attest
       #  uses: actions/attest-build-provenance@v3
