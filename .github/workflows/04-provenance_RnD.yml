@@ -1,57 +1,109 @@
-name: test-generating provenance
+#name: test-generating provenance
 
-on: [push]
+#on: [push]
 
-jobs:
+#jobs:
   
-  test1:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write        # REQUIRED for OIDC token (attestation signing)
-      contents: read
-      actions: read
-      attestations: write
-    outputs:
-      hashes: ${{ steps.generate_hash.outputs.hashes }}
-    steps:
-      - name: Show runner info
-        run: pwd; ls -la /home/runner/work/SalsaGate
+#  test1:
+#    runs-on: ubuntu-latest
+#    permissions:
+#      id-token: write        # REQUIRED for OIDC token (attestation signing)
+#      contents: read
+#      actions: read
+#      attestations: write
+#    outputs:
+#      hashes: ${{ steps.generate_hash.outputs.hashes }}
+#    steps:
+#      - name: Show runner info
+#        run: pwd; ls -la /home/runner/work/SalsaGate
       
-      - name: test
-        uses: actions/checkout@v4
+#      - name: test
+#        uses: actions/checkout@v4
 
-      - name: Show runner info
-        run: pwd; ls -la /home/runner/work/SalsaGate/SalsaGate
+#      - name: Show runner info
+#        run: pwd; ls -la /home/runner/work/SalsaGate/SalsaGate
       
       # Not required if we bundle and publish the puglin.
-      - name: install plugin dependencies 
-        run: npm ci
-        working-directory: ./.github/.actions/SalsaGate/hello_world/
+#      - name: install plugin dependencies 
+#        run: npm ci
+#        working-directory: ./.github/.actions/SalsaGate/hello_world/
 
-      - name: Run Hello World
-        uses: ./.github/.actions/SalsaGate/hello_world/
+#      - name: Run Hello World
+#        uses: ./.github/.actions/SalsaGate/hello_world/
       
-      - name: Generate Hash
-        id: hash
-        run: |
-          echo "hashes=$(sha256sum hello_world.json | base64 -w0)" >> "$GITHUB_OUTPUT"
+#      - name: Generate Hash
+#        id: hash
+#        run: |
+#          echo "hashes=$(sha256sum hello_world.json | base64 -w0)" >> "$GITHUB_OUTPUT"
       
       #- name: Attest
       #  uses: actions/attest-build-provenance@v3
       #  with:
       #    subject-path: /home/runner/work/SalsaGate/SalsaGate/hello_world.json
 
+#  provenance:
+#    needs: [test1]
+#    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+#    permissions:
+#      id-token: write        # REQUIRED for OIDC token (attestation signing)
+#      contents: write
+#      actions: read
+#    with:
+#      base64-subjects: "${{ needs.build.outputs.hashes }}"
+#      upload-assets: false
+jobs:
+  # This step builds our artifacts, uploads them to the workflow run, and
+  # outputs their digest.
+  build:
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build artifacts
+        run: |
+          # These are some amazing artifacts.
+          echo "foo" > artifact1
+          echo "bar" > artifact2
+
+      - name: Generate hashes
+        shell: bash
+        id: hash
+        run: |
+          # sha256sum generates sha256 hash for all artifacts.
+          # base64 -w0 encodes to base64 and outputs on a single line.
+          # sha256sum artifact1 artifact2 ... | base64 -w0
+          echo "hashes=$(sha256sum artifact1 artifact2 | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact1
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # tag=v3.1.0
+        with:
+          name: artifact1
+          path: artifact1
+          if-no-files-found: error
+          retention-days: 5
+
+      - name: Upload artifact2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # tag=v3.1.0
+        with:
+          name: artifact2
+          path: artifact2
+          if-no-files-found: error
+          retention-days: 5
+
+  # This step calls the generic workflow to generate provenance.
   provenance:
-    needs: [test1]
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    needs: [build]
     permissions:
-      id-token: write        # REQUIRED for OIDC token (attestation signing)
-      contents: write
       actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
-      base64-subjects: "${{ needs.test1.outputs.hashes }}"
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      # Upload provenance to a new release
       upload-assets: false
-    
+
+
 
 
       
