@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: list envrionment information
-        run: pwd
+        run: printenv
       - name: Build artifacts
         run: |
           # These are some amazing artifacts.
@@ -95,6 +95,7 @@ jobs:
 
       
       
+
 
 
 
