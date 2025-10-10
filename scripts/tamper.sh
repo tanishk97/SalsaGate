@@ -4,3 +4,6 @@ FILE="$1"
 # simulate tampering
 printf '\n' >> "$FILE"
 echo "Tampered $FILE"
+# the checksum after tampering
+shasum -a 256 "$FILE" | awk '{print $1}' > "${FILE}.sha256"
+echo "New checksum written to ${FILE}.sha256"
