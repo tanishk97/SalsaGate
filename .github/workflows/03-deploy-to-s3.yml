@@ -22,15 +22,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Example "build": write or copy your artifact to dist/app.txt
-      - name: Create demo artifact (replace with your build)
+      - name: Create demo artifact file
         run: |
           mkdir -p dist
-          echo "Hello from $(date -u +"%Y-%m-%dT%H:%M:%SZ")" > $ARTIFACT_PATH
+          echo "Hello from $(date -u +"%Y-%m-%dT%H:%M:%SZ")" > "$ARTIFACT_PATH"
 
       - name: Generate checksum
         run: |
-          bash scripts/checksum.sh "$ARTIFACT_PATH"
+          shasum -a 256 "$ARTIFACT_PATH" | awk '{print $1}' > "${ARTIFACT_PATH}.sha256"
+          echo "Checksum written to ${ARTIFACT_PATH}.sha256"
 
       - name: Upload artifact & checksum for later jobs
         uses: actions/upload-artifact@v4
@@ -40,45 +40,43 @@ jobs:
             ${{ env.ARTIFACT_PATH }}
             ${{ env.ARTIFACT_PATH }}.sha256
 
-  # Tamper demo job (runs automatically right after build) ---  
-tamper:
-  name: Tamper the file and verify mismatch
-  needs: build
-  runs-on: ubuntu-latest
-  steps:
-    - name: Download bundle
-      uses: actions/download-artifact@v4
-      with:
-        name: release-bundle
-        path: dl
+  tamper:
+    name: (Demo) Tamper the file and verify mismatch
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: dl
 
-    - name: Tamper file 
-      run: |
-        FILE="dl/${{ env.ARTIFACT_PATH }}"   # -> dl/dist/app.txt
-        printf '\n' >> "$FILE"
-        echo "Tampered $FILE"
+      - name: Tamper file (inline)
+        run: |
+          FILE="dl/${{ env.ARTIFACT_PATH }}"
+          printf '\n' >> "$FILE"
+          echo "Tampered $FILE"
 
-    - name: Compare checksum (should fail)
-      run: |
-        FILE="dl/${{ env.ARTIFACT_PATH }}"
-        NEW=$(shasum -a 256 "$FILE" | awk '{print $1}')
-        OLD=$(cat "${FILE}.sha256")
-        echo "OLD=$OLD"
-        echo "NEW=$NEW"
-        test "$NEW" = "$OLD"
-      continue-on-error: true
+      - name: Compare checksum (should fail)
+        run: |
+          FILE="dl/${{ env.ARTIFACT_PATH }}"
+          NEW_SUM=$(shasum -a 256 "$FILE" | awk '{print $1}')
+          OLD_SUM=$(cat "${FILE}.sha256")
+          echo "OLD=$OLD_SUM"
+          echo "NEW=$NEW_SUM"
+          test "$NEW_SUM" = "$OLD_SUM"
+        continue-on-error: true
 
-    - name: Post result note
-      if: ${{ failure() }}
-      run: echo "Tamper detected: checksum mismatch (expected for demo)."
-
+      - name: Post result note
+        if: ${{ failure() }}
+        run: echo 'Tamper detected: checksum mismatch (this is expected for the demo).'
 
   approve_and_deploy:
     name: Manual Approval → Upload to S3
-    needs: [build]   # (not depending on tamper)
+    needs: [build]   # not depending on tamper
     runs-on: ubuntu-latest
     environment:
-      name: prod     # This triggers the manual approval in GitHub Environments
+      name: prod     # Triggers manual approval via GitHub Environments
       url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     steps:
@@ -107,13 +105,14 @@ tamper:
             exit 1
           fi
           echo "Checksum OK!"
+
       - name: Upload to S3
         run: |
           FILE="dl/${{ env.ARTIFACT_PATH }}"
           aws s3 cp "$FILE" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"
           aws s3 cp "${FILE}.sha256" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}.sha256"
           echo "Uploaded to s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/"
+
       - name: Post deployment note
         run: |
           echo "Deployed to S3: s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"
-          echo "Deployed to S3: s3://${{ vars.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"
