@@ -50,6 +50,16 @@ and infra snippets with your actual values.
 
 ## Workflows
 
+### 00-normal-pipeline
+Triggered on pushes to `main` and demonstrates how a traditional pipeline can be
+subverted without cryptographic protections:
+1. Builds a tarball `site-<sha>.tgz` and stores it as an artifact.
+2. Waits for a manual approver using a GitHub environment named
+   `manual-approval` (configure required reviewers in the repository settings).
+3. Downloads the artifact after approval and **intentionally tampers** with
+   `dist/index.html` before simulating deployment, highlighting how easily a
+   trusted human gate can be bypassed without end-to-end verification.
+
 ### 01-build-attest
 Triggered on pushes to `main`.
 1. Builds a tarball `site-<sha>.tgz` (creates a placeholder `dist/index.html` if
