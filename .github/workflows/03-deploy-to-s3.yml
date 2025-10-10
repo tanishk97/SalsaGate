@@ -54,13 +54,14 @@ jobs:
 
       - name: Tamper file
         run: |
-          bash scripts/tamper.sh "dl/${{ env.ARTIFACT_NAME }}"
+          bash scripts/tamper.sh "dl/${{ env.ARTIFACT_PATH }}"
 
       - name: Compare checksum (should fail)
         run: |
           echo "Expecting mismatch..."
-          NEW_SUM=$(shasum -a 256 "dl/${{ env.ARTIFACT_NAME }}" | awk '{print $1}')
-          OLD_SUM=$(cat "dl/${{ env.ARTIFACT_NAME }}.sha256")
+          FILE="dl/${{ env.ARTIFACT_PATH }}"
+          NEW_SUM=$(shasum -a 256 "$FILE" | awk '{print $1}')
+          OLD_SUM=$(cat "${FILE}.sha256")
           echo "OLD=$OLD_SUM"
           echo "NEW=$NEW_SUM"
           test "$NEW_SUM" = "$OLD_SUM"
@@ -96,7 +97,7 @@ jobs:
       - name: Verify checksum (must pass before upload)
         run: |
           set -e
-          FILE="dl/${{ env.ARTIFACT_NAME }}"
+          FILE="dl/${{ env.ARTIFACT_PATH }}"
           EXPECTED=$(cat "${FILE}.sha256")
           ACTUAL=$(shasum -a 256 "$FILE" | awk '{print $1}')
           echo "Expected: $EXPECTED"
@@ -108,8 +109,9 @@ jobs:
           echo "Checksum OK!"
       - name: Upload to S3
         run: |
-          aws s3 cp "dl/${{ env.ARTIFACT_NAME }}" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"
-          aws s3 cp "dl/${{ env.ARTIFACT_NAME }}.sha256" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}.sha256"
+          FILE="dl/${{ env.ARTIFACT_PATH }}"
+          aws s3 cp "$FILE" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"
+          aws s3 cp "${FILE}.sha256" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}.sha256"
           echo "Uploaded to s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/"
       - name: Post deployment note
         run: |
