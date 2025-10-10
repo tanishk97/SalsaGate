@@ -1,0 +1,117 @@
+name: Build → Manual Approve → Upload to S3
+
+on:
+  push:
+    branches: [ "tamper_demo" ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # for AWS OIDC
+  contents: read
+
+env:
+  ARTIFACT_PATH: dist/app.txt      # path where your build puts the artifact
+  ARTIFACT_NAME: app.txt
+  S3_BUCKET: ${{ secrets.S3_BUCKET }}
+
+jobs:
+  build:
+    name: Build & Checksum
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Example "build": write or copy your artifact to dist/app.txt
+      - name: Create demo artifact (replace with your build)
+        run: |
+          mkdir -p dist
+          echo "Hello from $(date -u +"%Y-%m-%dT%H:%M:%SZ")" > $ARTIFACT_PATH
+
+      - name: Generate checksum
+        run: |
+          bash scripts/checksum.sh "$ARTIFACT_PATH"
+
+      - name: Upload artifact & checksum for later jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: |
+            ${{ env.ARTIFACT_PATH }}
+            ${{ env.ARTIFACT_PATH }}.sha256
+
+  # Tamper demo job (runs automatically right after build) ---
+  tamper:
+    name: (Demo) Tamper the file and verify mismatch
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: dl
+
+      - name: Tamper file
+        run: |
+          bash scripts/tamper.sh "dl/${{ env.ARTIFACT_NAME }}"
+
+      - name: Compare checksum (should fail)
+        run: |
+          echo "Expecting mismatch..."
+          NEW_SUM=$(shasum -a 256 "dl/${{ env.ARTIFACT_NAME }}" | awk '{print $1}')
+          OLD_SUM=$(cat "dl/${{ env.ARTIFACT_NAME }}.sha256")
+          echo "OLD=$OLD_SUM"
+          echo "NEW=$NEW_SUM"
+          test "$NEW_SUM" = "$OLD_SUM"
+
+        continue-on-error: true
+
+      - name: Post result note
+        if: ${{ failure() }}
+        run: |
+          echo 'Tamper detected: checksum mismatch (this is expected for the demo).'
+
+  approve_and_deploy:
+    name: Manual Approval → Upload to S3
+    needs: [build]   # (not depending on tamper)
+    runs-on: ubuntu-latest
+    environment:
+      name: prod     # This triggers the manual approval in GitHub Environments
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - name: Assume AWS Role via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Download bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: dl
+
+      - name: Verify checksum (must pass before upload)
+        run: |
+          set -e
+          FILE="dl/${{ env.ARTIFACT_NAME }}"
+          EXPECTED=$(cat "${FILE}.sha256")
+          ACTUAL=$(shasum -a 256 "$FILE" | awk '{print $1}')
+          echo "Expected: $EXPECTED"
+          echo "Actual:   $ACTUAL"
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "Checksum mismatch — aborting deploy."
+            exit 1
+          fi
+          echo "Checksum OK!"
+      - name: Upload to S3
+        run: |
+          aws s3 cp "dl/${{ env.ARTIFACT_NAME }}" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"
+          aws s3 cp "dl/${{ env.ARTIFACT_NAME }}.sha256" "s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}.sha256"
+          echo "Uploaded to s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/"
+      - name: Post deployment note
+        run: |
+          echo "Deployed to S3: s3://${{ env.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"
+          echo "Deployed to S3: s3://${{ vars.S3_BUCKET }}/releases/${{ github.sha }}/${{ env.ARTIFACT_NAME }}"

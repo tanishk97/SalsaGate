@@ -1,138 +1,106 @@
-# SalsaGate Trust Pipeline
+# SalsaGate
 
-![SalsaGate Logo](images/logo1.png)
+SalsaGate is a teaching repository for demonstrating how modern supply-chain
+controls prevent tampering in static site deployments. The project contains two
+contrasting GitHub Actions workflows: a "normal" pipeline that relies on manual
+approval, and a hardened pipeline that produces signed artifacts, SLSA
+provenance, and automated verification.
 
-This repo demonstrates end-to-end artifact trust for a static site using
-Sigstore `cosign`, SLSA provenance, a staging bucket, and an optional
-verifier Lambda.
+## Why SalsaGate?
 
-## 🔒 Supply Chain Security Features
+Attackers frequently target the gap between human approval and deployment. By
+comparing the two pipelines in this repository you can observe exactly how an
+artifact can be modified after a human approves it, and how cryptographic
+verification closes that window of opportunity.
 
-- **Cryptographic Signing**: All artifacts signed with Sigstore cosign
-- **SLSA Provenance**: Build attestations proving artifact integrity  
-- **SBOM Generation**: Software Bill of Materials for dependency tracking
-- **Zero-Trust Deployment**: Only verified artifacts can reach production
-- **Tamper Detection**: Automatic verification prevents compromised deployments
+## Repository Layout
 
-## Architecture Overview
+| Path | Description |
+| --- | --- |
+| `.github/workflows/` | GitHub Actions definitions for the insecure and hardened pipelines |
+| `infra/` | Example AWS policies and IAM role documents for running the trust workflow |
+| `trust-service/` | Optional Lambda verifier that enforces promotion rules |
+| `images/logo1.png` | Project logo used in presentations |
 
-```mermaid
-graph TD
-    A[Developer Push] --> B[GitHub Actions]
-    B --> C[Build & Package]
-    C --> D[Generate SBOM]
-    D --> E[Create SLSA Provenance]
-    E --> F[Sign with Cosign]
-    F --> G[Upload to Staging Bucket]
-    G --> H[Lambda Verifier]
-    H --> I{Verification}
-    I -->|✅ Valid| J[Tag as Verified]
-    I -->|❌ Invalid| K[Block Deployment]
-    J --> L[Promote to Production]
-```
+## Pipelines
 
-## One-time AWS setup
+### 00-normal-pipeline (Tamper Demonstration)
 
-1. Create two S3 buckets:
-   - `STAGING_BUCKET` – temporary storage for build outputs.
-   - `WEBSITE_BUCKET` – public site bucket.
-2. Apply the policy in [`infra/bucket-policy-website.json`](infra/bucket-policy-website.json)
-   to the website bucket so only objects tagged `trust=verified` can be uploaded.
-3. Create an IAM role using [`infra/iam-gha-oidc-role.json`](infra/iam-gha-oidc-role.json)
-   and note the ARN for `ROLE_ARN`.
-4. *(Optional)* Create a DynamoDB table for the ledger and deploy the Lambda
-   container in [`trust-service`](trust-service). Add an S3 trigger or Lambda URL
-   and use [`infra/eventbridge-s3-notification.json`](infra/eventbridge-s3-notification.json)
-   if you want automatic verification on upload.
+This workflow intentionally highlights the weakness of relying on a manual
+approver:
 
-Replace the TODO placeholders (`<REPLACE_ME>`, `<ACCOUNT_ID>`) in the workflows
-and infra snippets with your actual values.
+1. Builds a tarball (`site-<sha>.tgz`) from the static `dist/` directory.
+2. Uploads the artifact and pauses for approval in the `manual-approval`
+   environment.
+3. After approval, downloads the artifact, displays the original contents, and
+   then tampers with `index.html` before re-packaging the tarball.
+4. Prints a new checksum to show that the artifact has changed even though the
+   manual gate succeeded.
 
-## Workflows
+Use this workflow when teaching why artifact integrity cannot be delegated to a
+person alone.
 
-### 01-build-attest
-Triggered on pushes to `main`.
-1. Builds a tarball `site-<sha>.tgz` (creates a placeholder `dist/index.html` if
-   nothing exists).
-2. Generates an SPDX JSON SBOM.
-3. Writes a minimal SLSA predicate `provenance.json`.
-4. Installs cosign and signs/attests the tarball using blob commands.
-5. Uploads the tarball, signature, certificate, attestation bundle, SBOM, and
-   provenance file to the staging bucket.
+### 01-build-attest (Trusted Build)
 
-### 02-verify-promote
-Manual `workflow_dispatch` with `object_key` input (e.g., `site-<sha>.tgz`).
-1. Downloads the artifact bundle from staging.
-2. Verifies the signature and SLSA attestation with cosign blob commands.
-3. If `promote` is `true`, copies the tarball to the website bucket with the
-   tag `trust=verified` so the bucket policy permits it.
+The secure build pipeline introduces cryptographic assurances:
 
-## Trust Service (Lambda Verifier)
+- Generates the same site tarball as the insecure workflow.
+- Produces an SPDX SBOM and minimal SLSA provenance file.
+- Signs the tarball with Sigstore `cosign` and uploads the bundle (tarball,
+  signature, certificate, provenance, and SBOM) to an S3 staging bucket.
 
-The optional Lambda function in [`trust-service/`](trust-service/) provides automatic verification:
+### 02-verify-promote (Verification & Release)
 
-### Features
-- **Automatic Verification**: Triggers on S3 uploads to staging bucket
-- **Cosign Integration**: Verifies signatures and SLSA attestations
-- **Audit Trail**: Logs all verification attempts to DynamoDB
-- **Auto-Promotion**: Can automatically promote verified artifacts
-- **Container Deployment**: Includes cosign binary for Lambda execution
+A manually triggered workflow that validates and, optionally, promotes the
+signed artifact:
 
-### Deployment
-```bash
-# Build container
-docker build -t trust-verifier trust-service/
+1. Downloads the bundle from the staging bucket.
+2. Verifies both the signature and SLSA attestation with `cosign` blob commands.
+3. When `promote` is set to `true`, copies the tarball to the website bucket
+   while tagging it `trust=verified` so that the bucket policy permits
+   deployment.
 
-# Deploy to Lambda (requires ECR setup)
-# See trust-service/README.md for detailed instructions
-```
+## Optional Trust Service
+
+`trust-service/` contains a containerized AWS Lambda function that performs the
+same checks automatically whenever a new object lands in the staging bucket. The
+function can write results to DynamoDB, apply verification tags, and even copy
+verified artifacts to production.
 
 ### Environment Variables
-- `LEDGER_TABLE` - DynamoDB table for audit trail
-- `WEBSITE_BUCKET` - Target bucket for auto-promotion
-- `OIDC_ISSUER` - GitHub OIDC issuer (default: token.actions.githubusercontent.com)
 
-## Integration Example: MICS295Capstone
+- `LEDGER_TABLE` – DynamoDB table name for audit entries.
+- `WEBSITE_BUCKET` – Destination bucket for promotion.
+- `OIDC_ISSUER` – Expected OIDC issuer (defaults to
+  `https://token.actions.githubusercontent.com`).
 
-This trust pipeline has been successfully integrated into the [MICS295Capstone](../MICS295Capstone/) project, demonstrating real-world application:
+## AWS Prerequisites
 
-### Integration Highlights
-- **Existing CI/CD Enhanced**: Added trust pipeline to existing GitHub Actions workflow
-- **Backward Compatibility**: Maintains existing CodePipeline while adding security
-- **Zero-Trust Deployment**: S3 bucket policy enforces verification requirements
-- **Automatic Verification**: Lambda function verifies all uploaded artifacts
+Before running the trusted workflow set up the following resources (replace the
+placeholders in the JSON documents with your values):
 
-### Modified Workflow
-The integrated workflow in MICS295Capstone performs:
-1. **Build Phase**: Creates `dist/` with `index.html`, packages as tarball
-2. **Trust Phase**: Generates SBOM, SLSA provenance, signs with cosign
-3. **Upload Phase**: Uploads signed artifacts to staging bucket
-4. **Verification Phase**: Lambda automatically verifies and promotes
-5. **Legacy Phase**: Maintains existing CodePipeline for compatibility
+1. **Staging and Website Buckets** – See `infra/bucket-policy-website.json` for
+   the zero-trust website bucket policy.
+2. **OIDC IAM Role** – Provision the role defined in `infra/iam-gha-oidc-role.json`
+   and store the ARN for use in GitHub Actions secrets.
+3. **EventBridge/Lambda Triggers** – Optional automation using
+   `infra/eventbridge-s3-notification.json` and the Lambda verifier.
 
-## Signed Artifacts
+## Running the Demo
 
-Each build produces the following cryptographically signed artifacts:
+1. Fork the repository and configure the required GitHub Secrets (AWS account,
+   bucket names, OIDC role ARN, etc.).
+2. Push a commit to `main` and observe the `00-normal-pipeline` run. Approve the
+   environment and note that the artifact checksum changes afterward.
+3. Trigger `01-build-attest` and `02-verify-promote` to see the signed workflow
+   in action.
+4. Optionally deploy the Lambda trust service to enforce verification
+   automatically.
 
-```
-site-<commit-sha>.tgz                    # Website tarball
-site-<commit-sha>.tgz.sig                # Cryptographic signature
-site-<commit-sha>.tgz.pem                # X.509 certificate
-site-<commit-sha>.tgz.attestation.sigstore # SLSA attestation bundle
-sbom-<commit-sha>.spdx.json              # Software Bill of Materials
-provenance.json                          # Build provenance metadata
-```
+## Verification Cheat Sheet
 
-## Verification Process
-
-### Manual Verification
 ```bash
-# Download artifacts
-aws s3 cp s3://staging-bucket/site-<sha>.tgz .
-aws s3 cp s3://staging-bucket/site-<sha>.tgz.sig .
-aws s3 cp s3://staging-bucket/site-<sha>.tgz.pem .
-
-# Verify signature
+# After downloading artifacts from the staging bucket
 cosign verify-blob \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp "https://github.com/.+" \
@@ -140,7 +108,6 @@ cosign verify-blob \
   --certificate site-<sha>.tgz.pem \
   site-<sha>.tgz
 
-# Verify attestation
 cosign verify-blob-attestation \
   --type slsaprovenance \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
@@ -149,72 +116,9 @@ cosign verify-blob-attestation \
   site-<sha>.tgz
 ```
 
-### Automatic Verification (Lambda)
-The Lambda function performs the same verification automatically and:
-- Tags verified artifacts with `trust=verified`
-- Logs results to DynamoDB audit table
-- Optionally promotes to production bucket
-- Blocks tampered or invalid artifacts
+## Additional Resources
 
-## Security Guarantees
+- [Sigstore Documentation](https://docs.sigstore.dev/)
+- [SLSA Framework](https://slsa.dev/)
+- [GitHub Actions Environments](https://docs.github.com/actions/deployment/targeting-different-environments/using-environments-for-deployment)
 
-### 🔐 Cryptographic Verification
-- **Digital Signatures**: Every artifact cryptographically signed
-- **Certificate Transparency**: Signatures logged in Sigstore transparency log
-- **Identity Verification**: Proves artifacts built by your GitHub repository
-- **Tamper Detection**: Any modification invalidates signature
-
-### 📋 Supply Chain Attestation
-- **SLSA Provenance**: Cryptographic proof of build process
-- **SBOM**: Complete inventory of all components and dependencies
-- **Build Reproducibility**: Verifiable build environment and process
-- **Audit Trail**: Immutable log of all verification attempts
-
-### 🚫 Zero-Trust Deployment
-- **Bucket Policy Enforcement**: AWS S3 blocks unverified uploads
-- **No Human Override**: Cannot bypass verification process
-- **Fail-Safe**: System fails secure if verification fails
-- **Continuous Monitoring**: Real-time verification of all deployments
-
-## Notes
-
-- The workflows deliberately use `cosign` **blob** subcommands instead of image
-  commands to avoid Docker Hub authentication issues.
-- You can swap the manual `provenance.json` step with
-  [`actions/attest-build-provenance@v1`](https://github.com/actions/attest-build-provenance)
-  if you prefer a richer SLSA provenance.
-- All AWS access uses OIDC; no long-lived credentials are stored in GitHub.
-- The Lambda verifier requires container deployment to include the cosign binary.
-
-## File Structure
-
-```
-├── .github/workflows/
-│   ├── 01-build-attest.yml        # Build and sign artifacts
-│   └── 02-verify-promote.yml      # Verify and promote to production
-├── infra/
-│   ├── bucket-policy-website.json # Zero-trust S3 bucket policy
-│   ├── iam-gha-oidc-role.json     # GitHub OIDC IAM role
-│   └── eventbridge-s3-notification.json # S3 event configuration
-├── trust-service/
-│   ├── handler.py                 # Lambda verification function
-│   ├── Dockerfile                 # Container with cosign binary
-│   └── requirements.txt           # Python dependencies
-├── images/
-│   └── logo1.png                  # Project logo
-└── README.md                      # This file
-```
-
-## Getting Started
-
-1. **Fork this repository**
-2. **Set up AWS infrastructure** using templates in `infra/`
-3. **Update placeholders** in workflow files with your AWS details
-4. **Deploy Lambda verifier** (optional) for automatic verification
-5. **Push to main branch** - trust pipeline activates!
-
-Your artifacts are now cryptographically signed and verified! 🔒
-
-## Real-World Usage
-
-See the [MICS295Capstone integration](../MICS295Capstone/) for a complete example of how to integrate this trust pipeline into an existing CI/CD workflow while maintaining backward compatibility.
