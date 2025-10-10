@@ -40,38 +40,38 @@ jobs:
             ${{ env.ARTIFACT_PATH }}
             ${{ env.ARTIFACT_PATH }}.sha256
 
-  # Tamper demo job (runs automatically right after build) ---
-  tamper:
-    name: (Demo) Tamper the file and verify mismatch
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: release-bundle
-          path: dl
+  # Tamper demo job (runs automatically right after build) ---  
+tamper:
+  name: Tamper the file and verify mismatch
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - name: Download bundle
+      uses: actions/download-artifact@v4
+      with:
+        name: release-bundle
+        path: dl
 
-      - name: Tamper file
-        run: |
-          bash scripts/tamper.sh "dl/${{ env.ARTIFACT_PATH }}"
+    - name: Tamper file 
+      run: |
+        FILE="dl/${{ env.ARTIFACT_PATH }}"   # -> dl/dist/app.txt
+        printf '\n' >> "$FILE"
+        echo "Tampered $FILE"
 
-      - name: Compare checksum (should fail)
-        run: |
-          echo "Expecting mismatch..."
-          FILE="dl/${{ env.ARTIFACT_PATH }}"
-          NEW_SUM=$(shasum -a 256 "$FILE" | awk '{print $1}')
-          OLD_SUM=$(cat "${FILE}.sha256")
-          echo "OLD=$OLD_SUM"
-          echo "NEW=$NEW_SUM"
-          test "$NEW_SUM" = "$OLD_SUM"
+    - name: Compare checksum (should fail)
+      run: |
+        FILE="dl/${{ env.ARTIFACT_PATH }}"
+        NEW=$(shasum -a 256 "$FILE" | awk '{print $1}')
+        OLD=$(cat "${FILE}.sha256")
+        echo "OLD=$OLD"
+        echo "NEW=$NEW"
+        test "$NEW" = "$OLD"
+      continue-on-error: true
 
-        continue-on-error: true
+    - name: Post result note
+      if: ${{ failure() }}
+      run: echo "Tamper detected: checksum mismatch (expected for demo)."
 
-      - name: Post result note
-        if: ${{ failure() }}
-        run: |
-          echo 'Tamper detected: checksum mismatch (this is expected for the demo).'
 
   approve_and_deploy:
     name: Manual Approval → Upload to S3
