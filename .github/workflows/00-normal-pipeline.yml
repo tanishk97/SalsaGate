@@ -1,0 +1,83 @@
+---
+name: normal-manual-pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build_site:
+    name: Build static site artifact
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.package.outputs.archive_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate placeholder site
+        run: |
+          mkdir -p dist
+          cat <<'HTML' > dist/index.html
+          <html>
+            <head>
+              <title>SalsaGate Normal Pipeline</title>
+            </head>
+            <body>
+              <h1>SalsaGate</h1>
+              <p>This file was produced by the normal pipeline build stage.</p>
+            </body>
+          </html>
+          HTML
+
+      - name: Package artifact
+        id: package
+        run: |
+          ARCHIVE="site-${GITHUB_SHA}.tgz"
+          tar -czf "$ARCHIVE" dist
+          echo "archive_name=$ARCHIVE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.archive_name }}
+          path: ${{ steps.package.outputs.archive_name }}
+          retention-days: 1
+
+  manual_approval:
+    name: Await manual approval
+    needs: build_site
+    runs-on: ubuntu-latest
+    environment:
+      name: manual-approval
+    steps:
+      - name: Pending approval
+        run: echo "This job requires a reviewer to approve the environment before continuing."
+
+  deploy_like_stage:
+    name: Tamper and deploy artifact
+    needs:
+      - manual_approval
+      - build_site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build_site.outputs.artifact_name }}
+
+      - name: Extract artifact
+        run: |
+          tar -xzf ${{ needs.build_site.outputs.artifact_name }} -C .
+
+      - name: Tamper with generated site
+        run: |
+          echo "<p><strong>ATTACK:</strong> This file was modified after approval.</p>" >> dist/index.html
+
+      - name: Show final file contents
+        run: |
+          echo "Final index.html contents after tampering:"
+          cat dist/index.html
+
+      - name: Simulated deployment
+        run: |
+          echo "Simulating deployment of tampered artifact..."
