@@ -22,6 +22,7 @@
                 <a href="#architecture">Architecture</a>
                 <a href="#oidc">OIDC</a>
                 <a href="#use-cases">Use Cases</a>
+                <a href="#mcp">AI Assistant</a>
                 <a href="#community">Community</a>
                 <a href="documentation.html">Technical Docs</a>
                 <a href="#" class="btn ghost" data-theme-toggle>🌓</a>
@@ -187,6 +188,73 @@ salsagate verify \
         </div>
     </section>
 
+    <section id="mcp" class="section">
+        <div class="container">
+            <h2>AI-Powered Installation with MCP</h2>
+            <p class="lead">
+                SalsaGate includes an MCP (Model Context Protocol) server that enables AI assistants like Claude
+                to install, configure, and manage your supply chain security—just by asking.
+            </p>
+            <div class="grid2">
+                <div>
+                    <h3>What is MCP?</h3>
+                    <p>
+                        MCP is an open standard that enables secure, two-way connections between AI tools and your
+                        infrastructure. Instead of manually configuring files, simply tell Claude what you need.
+                    </p>
+                    <div class="badges" style="margin-top: 1rem;">
+                        <div class="badge">
+                            <div class="badge-title">Setup Time</div>
+                            <div class="badge-value">&lt; 2 min</div>
+                        </div>
+                        <div class="badge">
+                            <div class="badge-title">Commands</div>
+                            <div class="badge-value">Natural Language</div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3>Configure Claude Desktop</h3>
+                    <p>Add to your Claude Desktop config:</p>
+                    <pre><code>{
+  "mcpServers": {
+    "salsag-mcp": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/tanishk97/salsaG-installation#subdirectory=salsag-mcp",
+        "salsag-mcp"
+      ]
+    }
+  }
+}</code></pre>
+                </div>
+            </div>
+            <div class="grid2" style="margin-top: 2rem;">
+                <div class="card">
+                    <h3>Available AI Commands</h3>
+                    <ul>
+                        <li><strong>salsag_check</strong> — Check if SalsaGate is installed</li>
+                        <li><strong>salsag_install</strong> — Install with your configuration</li>
+                        <li><strong>salsag_verify_config</strong> — Validate your setup</li>
+                        <li><strong>salsag_status</strong> — Query trust ledger status</li>
+                        <li><strong>salsag_uninstall</strong> — Remove SalsaGate</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Example Prompts</h3>
+                    <p>Just ask Claude:</p>
+                    <ul>
+                        <li>"Check if SalsaGate is installed in my project"</li>
+                        <li>"Install SalsaGate with staging bucket X and website bucket Y"</li>
+                        <li>"Show me the trust ledger status"</li>
+                        <li>"Verify my SalsaGate configuration is correct"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section id="community" class="section">
         <div class="container">
             <h2>Join the SalsaGate Community</h2>
@@ -212,11 +280,10 @@ salsagate verify \
                 </div>
             </div>
             <div class="hero-ctas">
-                <a class="btn primary" href="https://github.com/SalsaGate" target="_blank"
+                <a class="btn primary" href="https://github.com/tanishk97/salsaG-installation" target="_blank"
                     rel="noreferrer noopener">GitHub</a>
-                <a class="btn" href="https://discord.com" target="_blank" rel="noreferrer noopener">Discord</a>
-                <a class="btn" href="https://x.com" target="_blank" rel="noreferrer noopener">X</a>
-                <a class="btn" href="https://youtube.com" target="_blank" rel="noreferrer noopener">YouTube</a>
+                <a class="btn" href="https://github.com/tanishk97/SalsaGate" target="_blank" rel="noreferrer noopener">SalsaGate Repo</a>
+                <a class="btn" href="documentation.html" rel="noreferrer noopener">Docs</a>
             </div>
         </div>
     </section>
@@ -226,11 +293,18 @@ salsagate verify \
             <div>
                 <h2>Get Started in Minutes</h2>
                 <p class="lead">Drop SalsaGate into your pipeline and start enforcing policies right away.</p>
-                <pre><code>curl -L https://example.com/salsagate/install.sh | bash
-salsagate auth login
-salsagate verify \
-  --artifact ./dist/app.tar.gz \
-  --policy strict</code></pre>
+                <h3>Option 1: One-Command Install</h3>
+                <pre><code>curl -sSL https://raw.githubusercontent.com/tanishk97/salsaG-installation/main/install.sh | bash -s -- \
+  --staging-bucket YOUR_BUCKET \
+  --website-bucket YOUR_SITE \
+  --region us-east-1</code></pre>
+                <h3>Option 2: Interactive Install</h3>
+                <pre><code>git clone https://github.com/tanishk97/salsaG-installation.git
+cd salsaG-installation
+./install.sh --interactive</code></pre>
+                <h3>Option 3: Install CLI Only</h3>
+                <pre><code>pip install git+https://github.com/tanishk97/salsaG-installation#subdirectory=salsag-cli
+salsaG verify --artifact index.tgz --config salsag.yml</code></pre>
             </div>
             <div class="card">
                 <h3>Quick Links</h3>
@@ -240,6 +314,11 @@ salsagate verify \
                     <li><a href="documentation.html#security">Security & Privacy</a></li>
                     <li><a href="documentation.html#testing">Testing & Evaluation</a></li>
                 </ul>
+                <h3 style="margin-top: 1.5rem;">Repositories</h3>
+                <ul>
+                    <li><a href="https://github.com/tanishk97/salsaG-installation" target="_blank">Installation Package</a></li>
+                    <li><a href="https://github.com/tanishk97/SalsaGate" target="_blank">SalsaGate Docs</a></li>
+                </ul>
             </div>
         </div>
     </section>
@@ -248,12 +327,12 @@ salsagate verify \
         <div class="container grid2">
             <div>
                 <strong>SalsaGate</strong><br />
-                Built for the secure software future.
+                Supply chain security for modern CI/CD pipelines.
             </div>
             <div>
                 <div>Docs: <a href="documentation.html">Technical Documentation</a></div>
-                <div>Community: Discord • X • YouTube</div>
-                <div>More: Blog • GitHub</div>
+                <div>Install: <a href="https://github.com/tanishk97/salsaG-installation" target="_blank">salsaG-installation</a></div>
+                <div>GitHub: <a href="https://github.com/tanishk97/SalsaGate" target="_blank">SalsaGate</a></div>
             </div>
         </div>
         <div class="container" style="margin-top: 12px">
