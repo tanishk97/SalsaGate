@@ -88,9 +88,40 @@ docker build -t trust-verifier trust-service/
 ```
 
 ### Environment Variables
-- `LEDGER_TABLE` - DynamoDB table for audit trail
+- `LEDGER_TABLE` - DynamoDB table for audit trail (default: "trust-ledger")
 - `WEBSITE_BUCKET` - Target bucket for auto-promotion
 - `OIDC_ISSUER` - GitHub OIDC issuer (default: token.actions.githubusercontent.com)
+
+### DynamoDB Audit Trail
+The Lambda function logs all verification attempts to a DynamoDB table:
+
+**Table Structure:**
+```bash
+# Create table
+aws dynamodb create-table \
+  --table-name trust-ledger \
+  --attribute-definitions AttributeName=object_key,AttributeType=S \
+  --key-schema AttributeName=object_key,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST
+```
+
+**Record Schema:**
+- `object_key` (String) - S3 URI of the artifact (partition key)
+- `status` (String) - "verified" or "failed"
+- `timestamp` (String) - ISO format verification time
+- `digest` (String) - SHA256 hash (for verified artifacts)
+- `details` (String) - Cosign verification output (truncated to 3000 chars)
+
+**Sample Records:**
+```json
+{
+  "object_key": "s3://staging-bucket/site-abc123.tgz",
+  "status": "verified",
+  "timestamp": "2025-09-14T23:28:00.000Z",
+  "digest": "sha256:a1b2c3d4e5f6...",
+  "details": "Verified OK\nAttestation verified"
+}
+```
 
 ## Integration Example: MICS295Capstone
 
